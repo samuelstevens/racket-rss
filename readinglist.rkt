@@ -7,11 +7,11 @@
 ; "settings" : {}
 ; "link": {title, url, viewed}
 
+(struct item (url title date-added))
+
 (define (parse path)
   (define in (open-input-file path))
   (parse-json (read-json in)))
-
-(struct item (url title date-added))
 
 (define (parse-json json)
   ; want to get url, title and addedAt fields, then sort by addedAt
@@ -30,7 +30,11 @@
 
 (define (write-items items path)
   (define out (open-output-file path #:exists 'replace))
-  (map (lambda (item) (displayln (item-url item) out)) items)
+  (map (lambda (item) 
+         (fprintf out "~a,~a\n"
+                  (item-url item) 
+                  (date->seconds (item-date-added item)))) 
+       items)
   (void))
 
 (define (main)
