@@ -31,3 +31,10 @@ Eventually, I want to add links from my clipboard on MacOS and from Safari on iO
 - [NetNewsWire](https://netnewswire.com/) has a great iOS client that supports JSON feeds. I'll just add the JSON feed to my local account--badabing, badaboom, a personal RSS feed for any article I want.
 
 ...Instapaper and Pocket probably support this out of the box.
+
+## Development
+
+- `main.rkt` has most of the core logic.
+- `script.rkt` is the script that can be executed
+- `readability.rkt` is a thin wrapper around `readability.js` to extract text content from an HTML string.
+- `readinglist.rkt` parsed an existing reading list file.
