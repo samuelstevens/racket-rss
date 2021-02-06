@@ -20,7 +20,7 @@
     (cond
       ((hash-has-key? parsed 'error) 'null)
       (else
-        (hash-ref parsed 'textContent)))))
+        (hash-ref parsed 'content)))))
 
 (module+ testing
   (require rackunit)

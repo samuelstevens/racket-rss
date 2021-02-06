@@ -41,7 +41,7 @@ Eventually, I want to add links from my clipboard on MacOS and from Safari on iO
 
 ## Issues
 
-- Following redirects is a problem right now.
-- Not sure how much of the JSON feed spec NetNewsWire supports. Maybe I should write it to use the original RSS XML format.
-- What happens when the content isn't parsed correctly (PDFs, not "readable", etc.)?
+- ~~Following redirects is a problem right now~~ (FIXED) 
+- ~~Not sure how much of the JSON feed spec NetNewsWire supports. Maybe I should write it to use the original RSS XML format.~~ (FIXED)
+- ~~What happens when the content isn't parsed correctly (PDFs, not "readable", etc.)?~~ (FIXED)
 - Slow...can I multithread?

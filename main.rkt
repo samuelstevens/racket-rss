@@ -10,22 +10,12 @@
   racket/contract
   racket/file
   html 
+  racket/date
   json
+  xml
   net/url 
   racket/serialize
   "readability.rkt")
-
-; region PROVIDE
-
-(define (optional/c type?)
-  (or/c 'null type?))
-
-(provide (contract-out
-          (parse-link-file (-> (or/c path? string?) (listof item?)))
-          (get-item-content (-> item? item?))
-          (make-feed (-> (listof item?) jsexpr?))))
-
-; endregion
 
 ; region ITEM
 
@@ -41,6 +31,14 @@
         'content_text (item-content item)
         'date_published (date->rfc (item-date-added item))))
 
+(define (item->xexpr i)
+  `(item () 
+         (title () ,(item-title i))
+         (link () ,(url->string (item-url i)))
+         (description () ,(item-content i))
+         (pubDate () ,(date->rfc-822 (item-date-added i)))
+         (guid () ,(url->string (item-url i)))))
+
 (define (url->filename u)
   (define path (path/param->filename (url-path u)))
   (if (empty? path) 
@@ -50,20 +48,6 @@
 (define (path/param->filename p)
   (string-join (map path/param-path p) "-"))
 
-(define (two-digits number)
-  (~a number #:min-width 2 #:align 'right #:left-pad-string "0"))
-
-(define (date->rfc date)
-  (apply (curry format "~a-~a-~aT~a:~a:~a-00:00" (date-year date))
-         (map two-digits
-              (list
-               (date-month date)
-               (date-day date)
-               (date-hour date)
-               (date-minute date)
-               (date-second date)))))
-
-(define (rfc->date) (void))
 
 ; endregion
 
@@ -99,10 +83,29 @@
     (else
       (define url (item-url prev-item))
       (define html (get-html url))
-      (item url 
-            (get-title html) 
-            (parse-content (url->string url) html) 
-            (item-date-added prev-item)))))
+      (define content (parse-content (url->string url) html))
+      (cond
+        ((json-null? content) (item url 
+                               (get-title html) 
+                               (source-link url (get-title html))
+                               (item-date-added prev-item)))
+        (else
+          (item url 
+                (get-title html) 
+                (add-read-more (clean-content content) url (get-title html))
+                (item-date-added prev-item)))))))
+
+(define (json-null? jsexpr)
+  (eq? 'null jsexpr))
+
+(define (clean-content content)
+  (regexp-replace* #rx"(<br/>\\s*)+" content "<br/>"))
+
+(define (source-link url title)
+  (format "<a href=\"~a\">Source</a>" (url->string url)))
+
+(define (add-read-more content url title)
+  (string-append content (source-link url title)))
 
 (define (downloaded? item)
   (cond
@@ -130,11 +133,50 @@
 
 ; region FEED
 
-(define (make-feed items)
+(define (make-json-feed items)
   (hash 'items (map item->jsexpr items) 
         'title "Reading List" 
         'version "https://jsonfeed.org/version/1.1"))
 
+(define (make-xml-feed items)
+  `(rss ((version "2.0")) 
+        (channel ()
+                 (title () "Reading List")
+                 (link () "https://samuelstevens.me/readinglist.xml")
+                 (description () "My personal reading list")
+                 (language () "en-us")
+                 (pubDate () ,(date->rfc-822 (current-date)))
+                 (lastBuildDate () ,(date->rfc-822 (current-date)))
+                 (docs () "https://cyber.harvard.edu/rss/rss.html")
+                 (generator () "samuelstevens/racket-rss")
+                 (managingEditor () "samuel.robert.stevens@gmail.com")
+                 (webMaster () "samuel.robert.stevens@gmail.com")
+                 ,@(map item->xexpr items))))
+
+(define (date->rfc-822 d)
+  ; https://www.w3.org/Protocols/rfc822/#z28
+  (parameterize ((date-display-format 'rfc2822))
+    (define time (format "~a:~a:~a ~a" 
+                         (two-digits (date-hour d)) 
+                         (two-digits (date-minute d))
+                         (two-digits (date-second d))
+                         "UT"))
+    (format "~a ~a" (date->string d) time)))
+
+(define (two-digits number)
+  (~a number #:min-width 2 #:align 'right #:left-pad-string "0"))
+
+(define (date->rfc date)
+  (apply (curry format "~a-~a-~aT~a:~a:~a-00:00" (date-year date))
+         (map two-digits
+              (list
+               (date-month date)
+               (date-day date)
+               (date-hour date)
+               (date-minute date)
+               (date-second date)))))
+
+(define (rfc->date) (void))
 
 ; endregion
 
@@ -143,17 +185,20 @@
 (define cache-dir (make-parameter (string->path "/users/samstevens/iCloud/reading-list-cache")))
 (define feed-file (make-parameter (string->path "feed.json")))
 
-(define (main)
+(define (main filename)
+  (define items (map (compose write-item get-item-content) (parse-link-file filename)))
+  (display-to-file (xexpr->string (make-xml-feed items)) (feed-file) #:exists 'replace))
+
+(define (script)
   (cond
     ((eq? (vector-length (current-command-line-arguments)) 0) 
      (displayln "pass a filename as an argument"))
     (else
-      (define filename (vector-ref (current-command-line-arguments) 0))
-      (define items (map (compose write-item get-item-content) (parse-link-file filename)))
-      (parameterize ((feed-file (string->path "/users/samstevens/Development/personal-website/readinglist.json")))
-        (display-to-file (jsexpr->string (make-feed items)) (feed-file) #:exists 'replace)))))
+      (parameterize ((feed-file (string->path "/users/samstevens/Development/personal-website/readinglist.xml")))
+        (define filename (vector-ref (current-command-line-arguments) 0))
+        (main filename)))))
 
-(main)
+(script)
 
 ; endregion
 
@@ -166,6 +211,8 @@
   (check-equal? (date->rfc (seconds->date 0)) "1969-12-31T19:00:00-00:00")
   (check-equal? (url->filename (string->url "https://duckduckgo.com")) "duckduckgo.com")
   (check-equal? (path/param->filename (url-path (string->url "https://duckduckgo.com"))) "")
+  (check-pred xexpr? (make-xml-feed '()))
+  (check-pred xexpr? (make-xml-feed (list (item (string->url "https://google.com") "hello world" "" (current-date)))))
 )
 
 ; endregion
