@@ -43,7 +43,7 @@
 
 (define (url->filename u)
   (define path (path/param->filename (url-path u)))
-  (if (string=? path "") 
+  (if (empty? path) 
       (url-host u) 
       (string-append (url-host u) "-" path)))
 
@@ -85,11 +85,9 @@
 
 ; region DISK
 
-(define (write-cache items)
-  (map write-item items))
-
 (define (write-item i)
-  (write-to-file (serialize i) (item-cache-file i) #:exists 'replace))
+  (write-to-file (serialize i) (item-cache-file i) #:exists 'replace)
+  i)
 
 ; endregion
 
@@ -151,8 +149,7 @@
      (displayln "pass a filename as an argument"))
     (else
       (define filename (vector-ref (current-command-line-arguments) 0))
-      (define items (map get-item-content (parse-link-file filename)))
-      (write-cache items)
+      (define items (map (compose write-item get-item-content) (parse-link-file filename)))
       (parameterize ((feed-file (string->path "/users/samstevens/Development/personal-website/readinglist.json")))
         (display-to-file (jsexpr->string (make-feed items)) (feed-file) #:exists 'replace)))))
 
