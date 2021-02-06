@@ -20,9 +20,10 @@ Eventually, I want to add links from my clipboard on MacOS and from Safari on iO
 
 ### 2. Generate JSON feed
 
-- I'm writing this part in Racket to learn the language, but it would make plenty of sense to use Python, or even NodeJS.
+- I'm writing this part in Racket to learn the language, but it would make plenty of sense to use bash, Python, Go or even NodeJS.
 - I'm using [`readability.js`](https://github.com/mozilla/readability) to extract plain text content.
   - I probably want a fallback of some kind when this doesn't work--probably just raw HTML with some minimal CSS.
+  - I definitely want to add PDFs to this list, so I'll need a fallback for sure.
 - I'll run this program regularly (twice a day?) with launchd, [inspired by this post](https://blog.jan-ahrens.eu/2017/01/13/cron-is-dead-long-live-launchd.html).
 - I'll also write a bash script to commit this file to my [personal website](https://samuelstevens.me).
 
@@ -34,7 +35,12 @@ Eventually, I want to add links from my clipboard on MacOS and from Safari on iO
 
 ## Development
 
-- `main.rkt` has most of the core logic.
-- `script.rkt` is the script that can be executed
+- `main.rkt` has most of the core logic and the script to execute.
 - `readability.rkt` is a thin wrapper around `readability.js` to extract text content from an HTML string.
 - `readinglist.rkt` parsed an existing reading list file.
+
+## Issues
+
+- Following redirects is a problem right now.
+- Not sure how much of the JSON feed spec NetNewsWire supports. Maybe I should write it to use the original RSS XML format.
+- What happens when the content isn't parsed correctly (PDFs, not "readable", etc.)?
